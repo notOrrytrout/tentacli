@@ -1,6 +1,3 @@
-use serde::Serialize;
-use tentacli_packet::{LoginPacket, WorldPacket, Segment};
-use crate::{depends_on, conditional};
 #[macro_use]
 extern crate thiserror;
 

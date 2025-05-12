@@ -1,6 +1,3 @@
-use serde::Serialize;
-use tentacli_packet::{LoginPacket, WorldPacket, Segment};
-use crate::{depends_on, conditional};
 use proc_macro::{TokenStream};
 use proc_macro2::{Ident};
 use quote::{quote};

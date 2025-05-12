@@ -1,14 +1,12 @@
-use serde::Serialize;
-use tentacli_packet::WorldPacket;
 use async_trait::async_trait;
 use tentacli_traits::PacketHandler;
-use tentacli_traits::types::custom_fields::PackedGuid;
 use tentacli_traits::types::{HandlerInput, HandlerOutput, HandlerResult};
+use tentacli_traits::types::custom_fields::PackedGuid;
 use tentacli_traits::types::opcodes::Opcode;
-use tentacli_traits::types::player::Player;
+use tentacli_traits::types::shared::Object;
 
 #[derive(WorldPacket, Serialize, Debug)]
-struct CheckEmptyIncoming {
+struct CheckEmpty {
     packed_guid: PackedGuid,
     unknown: u8,
 }
@@ -25,12 +23,13 @@ struct Incoming {
 }
 
 pub struct Handler;
+
 #[async_trait]
 impl PacketHandler for Handler {
     async fn handle(&mut self, input: &mut HandlerInput) -> HandlerResult {
         let mut response = Vec::new();
 
-        let (CheckEmptyIncoming { unknown, .. }, _) = CheckEmptyIncoming::from_binary(&input.data)?;
+        let (CheckEmpty { unknown, .. }, _) = CheckEmpty::from_binary(&input.data)?;
 
         if unknown == 1 {
             response.push(HandlerOutput::ErrorMessage("Player not exists".to_string(), None));
@@ -38,13 +37,7 @@ impl PacketHandler for Handler {
             return Ok(response);
         }
 
-        let (Incoming {
-            packed_guid,
-            name,
-            race,
-            class,
-            ..
-        }, json) = Incoming::from_binary(&input.data)?;
+        let (Incoming { packed_guid, name, .. }, json) = Incoming::from_binary(&input.data)?;
 
         response.push(HandlerOutput::ResponseMessage(
             Opcode::get_opcode_name(input.opcode as u32)
@@ -54,27 +47,15 @@ impl PacketHandler for Handler {
 
         let PackedGuid(guid) = packed_guid;
 
-        let my_guid = {
-            input.session.lock().await.me.as_ref().unwrap().guid
-        };
-
-        // modify/insert only another players
-        // current player stored inside Session instance
-        if my_guid != guid {
-            input.data_storage.lock().unwrap().players_map.entry(guid).and_modify(|p| {
-                p.name = name.to_string();
-                p.race = race;
-                p.class = class;
-            }).or_insert_with(|| {
-                Player {
-                    guid,
-                    name,
-                    race,
-                    class,
-                    ..Player::default()
-                }
-            });
-        }
+        input.data_storage.lock().await.players_map.entry(guid).and_modify(|p| {
+            p.name = name.to_string();
+        }).or_insert_with(|| {
+            Object {
+                guid,
+                name,
+                ..Object::default()
+            }
+        });
 
         Ok(response)
     }

@@ -4,7 +4,7 @@ use tui::layout::{Alignment, Rect};
 use tui::style::{Color, Style};
 use tui::widgets::{Block, Borders, BorderType, Paragraph, Wrap};
 
-use super::traits::UIComponent;
+use crate::features::ui::traits::{UIComponent};
 
 const APP_NAME: &str = "Idewave TentaCLI";
 

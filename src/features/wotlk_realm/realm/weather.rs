@@ -1,6 +1,4 @@
 use async_trait::async_trait;
-use serde::Serialize;
-use tentacli_packet::WorldPacket;
 use tentacli_traits::PacketHandler;
 use tentacli_traits::types::{HandlerInput, HandlerOutput, HandlerResult};
 use tentacli_traits::types::opcodes::Opcode;

@@ -1,23 +1,21 @@
-use serde::Serialize;
-use tentacli_packet::{LoginPacket, WorldPacket, Segment};
-use crate::{depends_on, conditional};
-use std::{num::ParseIntError};
 use std::io::{Read, Write};
-use anyhow::{anyhow, Result as AnyResult};
+use std::num::ParseIntError;
+
+use anyhow::anyhow;
 use flate2::Compression;
-use flate2::read::ZlibDecoder;
 use flate2::read::DeflateDecoder;
+use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
+use rand::distr::{Distribution, StandardUniform};
 use rand::Rng;
-use rand::distributions::{Distribution, Standard};
 
 #[allow(dead_code)]
 pub fn generate_random_number<T>() -> T
-    where
-        Standard: Distribution<T>,
+where
+    StandardUniform: Distribution<T>,
 {
-    let mut rng = rand::thread_rng();
-    rng.gen()
+    let mut rng = rand::rng();
+    rng.random::<T>()
 }
 
 #[allow(dead_code)]
@@ -37,7 +35,7 @@ pub fn encode_hex(bytes: &[u8]) -> String {
     items.join(" ")
 }
 
-pub fn zlib_decompress(data: &[u8]) -> AnyResult<Vec<u8>> {
+pub fn zlib_decompress(data: &[u8]) -> anyhow::Result<Vec<u8>> {
     let mut buffer = Vec::new();
     let mut decoder = ZlibDecoder::new(data);
     decoder.read_to_end(&mut buffer)?;
@@ -45,7 +43,7 @@ pub fn zlib_decompress(data: &[u8]) -> AnyResult<Vec<u8>> {
     Ok(buffer)
 }
 
-pub fn deflate_decompress(data: &[u8]) -> AnyResult<Vec<u8>> {
+pub fn deflate_decompress(data: &[u8]) -> anyhow::Result<Vec<u8>> {
     let mut buffer = Vec::new();
     let mut decoder = DeflateDecoder::new(data);
     decoder.read_to_end(&mut buffer)?;
@@ -53,7 +51,7 @@ pub fn deflate_decompress(data: &[u8]) -> AnyResult<Vec<u8>> {
     Ok(buffer)
 }
 
-pub fn compress(data: &[u8]) -> AnyResult<Vec<u8>> {
+pub fn compress(data: &[u8]) -> anyhow::Result<Vec<u8>> {
     let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
     encoder.write_all(data)?;
 
@@ -77,7 +75,7 @@ pub fn camel_to_upper_snake_case(name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::{decode_hex, zlib_decompress, compress, encode_hex};
+    use crate::{compress, decode_hex, encode_hex, zlib_decompress};
 
     #[test]
     fn test_decompress() {

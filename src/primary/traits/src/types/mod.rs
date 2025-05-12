@@ -1,9 +1,12 @@
-use serde::Serialize;
-use tentacli_packet::{LoginPacket, WorldPacket, Segment};
-use crate::{depends_on, conditional};
-use anyhow::{Result as AnyResult};
-use std::sync::{Arc, Mutex as SyncMutex};
+use std::sync::Arc;
+
+use chat::Message;
+use realm::Realm;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
+
+use crate::PacketHandler;
+use crate::types::shared::{DataStorage, Object, Session};
 
 pub mod auth;
 pub mod chat;
@@ -22,14 +25,6 @@ pub mod update_fields;
 pub mod warden;
 pub mod world;
 pub mod errors;
-pub mod object;
-
-use chat::{Message};
-use player::{Player};
-use realm::Realm;
-
-use crate::PacketHandler;
-use crate::types::shared::{DataStorage, Session};
 
 #[derive(Debug, Clone)]
 pub enum Signal {
@@ -40,7 +35,7 @@ pub enum Signal {
 pub struct HandlerInput {
     pub session: Arc<Mutex<Session>>,
     pub data: Vec<u8>,
-    pub data_storage: Arc<SyncMutex<DataStorage>>,
+    pub data_storage: Arc<Mutex<DataStorage>>,
     pub opcode: u16,
 }
 
@@ -60,9 +55,8 @@ pub enum HandlerOutput {
     // data transfer
     ChatMessage(Message),
     Data((u32, Vec<u8>, String)),
-    TransferCharactersList(Vec<Player>),
+    TransferCharactersList(Vec<Object>),
     TransferRealmsList(Vec<Realm>),
-    IdentifyMe(u64),
     UpdatePlayer(u64),
     UpdateNPC(u64),
     UpdateItem(u64),
@@ -76,7 +70,7 @@ pub enum HandlerOutput {
     Drop,
     ExitRequest,
     Freeze,
-    SelectCharacter(Player),
+    SelectCharacter(u64),
     SelectRealm(Realm),
 
     // messages
@@ -87,16 +81,21 @@ pub enum HandlerOutput {
     ErrorMessage(String, Option<String>),
 }
 
-pub type HandlerResult = AnyResult<Vec<HandlerOutput>>;
+pub type Outputs = Vec<HandlerOutput>;
+
+pub type HandlerResult = anyhow::Result<Outputs>;
 
 pub type ProcessorResult = Vec<Box<dyn PacketHandler + Send>>;
 
 pub type ProcessorFunction = Box<dyn Fn(u16) -> ProcessorResult + Send>;
 
+pub type Task = JoinHandle<anyhow::Result<()>>;
+
 #[derive(Default, Debug, Clone)]
 pub struct IncomingPacket {
     pub opcode: u16,
     pub body: Vec<u8>,
+    pub header: Vec<u8>,
 }
 
 #[derive(Default, Debug, Clone)]

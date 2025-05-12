@@ -1,44 +1,21 @@
-use anyhow::Result as AnyResult;
-use tentacli::{Client, CreateOptions, RunOptions};
-use serde::Deserialize;
-use std::fs;
+use cfg_if::cfg_if;
 
-#[derive(Deserialize)]
-struct AppConfig {
-    username:     String,
-    password:     String,
-    host:         String,
-    port:         u16,
-    realm:        String,
-    character:    String,
-    log_file:     Option<String>,
-    login_delay:  Option<u64>,
-}
+use tentacli::{Client, CreateOptions, RunOptions};
 
 #[tokio::main]
-async fn main() -> AnyResult<()> {
-    // Load YAML config
-    let s = fs::read_to_string("Config.yml")?;
-    let cfg: AppConfig = serde_yaml::from_str(&s)?;
+async fn main() -> anyhow::Result<()> {
+    cfg_if! {
+        if #[cfg(feature = "debug")] {
+            console_subscriber::init();
+        }
+    }
 
-    // Run client
-    Client::new(CreateOptions {
-        data_storage: None,
-    })
-    .run(RunOptions {
+    Client::new(CreateOptions::default()).run(RunOptions {
         external_features: vec![],
-        account: &cfg.username,
-        password: &cfg.password,
-        host: &cfg.host,
-        port: cfg.port,
-        realm: &cfg.realm,
-        character: &cfg.character,
-        log_file: cfg.log_file.clone(),
-        login_delay: cfg.login_delay,
+        account: "bot1",
         config_path: "Config.yml",
-        dotenv_path: "",
-    })
-    .await?;
+        dotenv_path: ".env",
+    }).await?;
 
     Ok(())
 }

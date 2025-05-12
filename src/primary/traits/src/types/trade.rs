@@ -1,6 +1,3 @@
-use serde::Serialize;
-use tentacli_packet::{LoginPacket, WorldPacket, Segment};
-use crate::{depends_on, conditional};
 pub struct TradeStatus;
 
 #[allow(dead_code)]

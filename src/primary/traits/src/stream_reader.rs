@@ -1,6 +1,3 @@
-use serde::Serialize;
-use tentacli_packet::{LoginPacket, WorldPacket, Segment};
-use crate::{depends_on, conditional};
 use std::io::Cursor;
 use async_trait::async_trait;
 use byteorder::{LittleEndian, ReadBytesExt};

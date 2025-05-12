@@ -1,6 +1,3 @@
-use serde::Serialize;
-use tentacli_packet::{LoginPacket, WorldPacket, Segment};
-use crate::{depends_on, conditional};
 use num_bigint::{BigInt, Sign, ToBigInt};
 use sha1::{Digest, Sha1};
 

@@ -1,6 +1,6 @@
-use tentacli_traits::types::opcodes::Opcode;
-use tentacli_traits::types::ProcessorResult;
 use tentacli_traits::Processor;
+use tentacli_traits::types::opcodes::Opcode;
+use tentacli_traits::types::{ProcessorResult};
 
 mod send_data;
 
@@ -11,7 +11,7 @@ impl Processor for WardenProcessor {
         let handlers: ProcessorResult = match opcode {
             Opcode::SMSG_WARDEN_DATA => {
                 vec![Box::new(send_data::Handler)]
-            }
+            },
             _ => vec![],
         };
 

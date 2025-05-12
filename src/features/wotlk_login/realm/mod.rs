@@ -19,9 +19,6 @@ impl Processor for RealmProcessor {
 }
 
 pub mod packet {
-    use serde::Serialize;
-    use tentacli_packet::WorldPacket;
-
     // Opcode::CMSG_LOGOUT_REQUEST
     #[derive(WorldPacket, Serialize, Debug, Default)]
     pub struct LogoutOutcoming {}

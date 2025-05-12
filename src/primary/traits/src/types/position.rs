@@ -1,12 +1,9 @@
-use serde::Serialize;
-use tentacli_packet::{LoginPacket, WorldPacket, Segment};
-use crate::{depends_on, conditional};
-use anyhow::{Result as AnyResult};
-use std::io::{BufRead};
-use byteorder::{LittleEndian, ReadBytesExt};
-use serde::{Serialize};
+use std::io::BufRead;
 
-use crate::{BinaryConverter};
+use byteorder::{LittleEndian, ReadBytesExt};
+use serde::Serialize;
+
+use crate::BinaryConverter;
 
 #[derive(Serialize, Copy, Clone, Default, Debug, PartialEq)]
 pub struct Point3D {
@@ -22,7 +19,7 @@ impl Point3D {
 }
 
 impl BinaryConverter for Point3D {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()> {
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
         self.x.write_into(buffer)?;
         self.y.write_into(buffer)?;
         self.z.write_into(buffer)?;
@@ -30,7 +27,7 @@ impl BinaryConverter for Point3D {
         Ok(())
     }
 
-    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> AnyResult<Self> {
+    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> anyhow::Result<Self> {
         let x = reader.read_f32::<LittleEndian>()?;
         let y = reader.read_f32::<LittleEndian>()?;
         let z = reader.read_f32::<LittleEndian>()?;
@@ -39,7 +36,7 @@ impl BinaryConverter for Point3D {
     }
 }
 
-#[derive(Serialize,Copy, Clone, Default, Debug, PartialEq)]
+#[derive(Serialize, Copy, Clone, Default, Debug, PartialEq)]
 pub struct Vector3D {
     pub point: Point3D,
     pub direction: f32,
@@ -52,14 +49,14 @@ impl Vector3D {
 }
 
 impl BinaryConverter for Vector3D {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()> {
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
         self.point.write_into(buffer)?;
         self.direction.write_into(buffer)?;
 
         Ok(())
     }
 
-    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> AnyResult<Self> {
+    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> anyhow::Result<Self> {
         let point = Point3D::read_from(reader, &mut vec![])?;
         let direction = reader.read_f32::<LittleEndian>()?;
         Ok(Self { point, direction })

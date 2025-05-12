@@ -6,8 +6,8 @@ use tui::widgets::{ListItem, ListState};
 use tentacli_traits::types::HandlerOutput;
 use tentacli_traits::types::realm::Realm;
 
-use super::traits::UIModalComponent;
-use super::types::UIEventFlags;
+use crate::features::ui::traits::{UIModalComponent};
+use crate::features::ui::types::{UIEventFlags};
 
 #[derive(Clone)]
 pub struct RealmModal {

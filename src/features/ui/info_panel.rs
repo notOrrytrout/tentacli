@@ -1,4 +1,3 @@
-
 use tui::backend::Backend;
 use tui::Frame;
 use tui::layout::{Alignment, Rect};
@@ -6,7 +5,7 @@ use tui::style::{Color, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, BorderType, Clear, Paragraph, Wrap};
 
-use super::traits::UIComponent;
+use crate::features::ui::traits::{UIComponent};
 
 #[derive(Default)]
 pub struct InfoPanel {

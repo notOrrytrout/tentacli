@@ -1,6 +1,3 @@
-use serde::Serialize;
-use tentacli_packet::{LoginPacket, WorldPacket, Segment};
-use crate::{depends_on, conditional};
 use std::io::{Error, Write};
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::env;
@@ -190,6 +187,7 @@ impl EnvConfig {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::path::Path;
     use tempdir::TempDir;
     use yaml_rust::YamlLoader;
 

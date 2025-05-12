@@ -1,5 +1,3 @@
-use serde::Serialize;
-use tentacli_packet::WorldPacket;
 use async_trait::async_trait;
 use tentacli_traits::PacketHandler;
 use tentacli_traits::types::{HandlerInput, HandlerOutput, HandlerResult};
@@ -12,6 +10,7 @@ pub struct Incoming {
 }
 
 pub struct Handler;
+
 #[async_trait]
 impl PacketHandler for Handler {
     async fn handle(&mut self, input: &mut HandlerInput) -> HandlerResult {
@@ -25,31 +24,31 @@ impl PacketHandler for Handler {
             Some(json),
         ));
 
-        let mut guard = input.data_storage.lock().unwrap();
+        let mut guard = input.data_storage.lock().await;
 
         match guid {
             g if guard.players_map.contains_key(&g) => {
                 guard.players_map.remove(&g);
-            },
+            }
             g if guard.units_map.contains_key(&g) => {
                 guard.units_map.remove(&g);
-            },
+            }
             g if guard.game_objects_map.contains_key(&g) => {
                 guard.game_objects_map.remove(&g);
-            },
+            }
             g if guard.dynamic_objects_map.contains_key(&g) => {
                 guard.dynamic_objects_map.remove(&g);
-            },
+            }
             g if guard.items_map.contains_key(&g) => {
                 guard.items_map.remove(&g);
-            },
+            }
             g if guard.containers_map.contains_key(&g) => {
                 guard.containers_map.remove(&g);
-            },
+            }
             g if guard.corpses_map.contains_key(&g) => {
                 guard.corpses_map.remove(&g);
-            },
-            _ => {},
+            }
+            _ => {}
         }
 
         Ok(response)

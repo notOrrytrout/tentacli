@@ -1,21 +1,15 @@
-use serde::Serialize;
-use tentacli_packet::{LoginPacket, WorldPacket, Segment};
-use crate::{depends_on, conditional};
 use std::collections::BTreeMap;
-use anyhow::{Result as AnyResult};
-use tokio::task::JoinHandle;
-use async_broadcast::{Receiver as BroadcastReceiver, Sender as BroadcastSender};
 
-use crate::types::{HandlerOutput, ProcessorFunction, ProcessorResult};
+use crate::types::{HandlerOutput, ProcessorFunction, ProcessorResult, Task};
 
 pub trait Feature: Send {
     fn set_broadcast_channel(
         &mut self,
-        _sender: BroadcastSender<HandlerOutput>,
-        _receiver: BroadcastReceiver<HandlerOutput>,
+        _sender: async_broadcast::Sender<HandlerOutput>,
+        _receiver: async_broadcast::Receiver<HandlerOutput>,
     ) {}
 
-    fn get_tasks(&mut self) -> AnyResult<Vec<JoinHandle<AnyResult<()>>>>;
+    fn get_tasks(&mut self) -> anyhow::Result<Vec<Task>> {
         Ok(vec![])
     }
 

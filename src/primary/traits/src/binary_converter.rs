@@ -1,158 +1,139 @@
-use serde::Serialize;
-use tentacli_packet::{LoginPacket, WorldPacket, Segment};
-use crate::{depends_on, conditional};
-use anyhow::{Result as AnyResult};
 use std::io::{BufRead, Cursor, Write};
+
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use crate::types::errors::FieldError;
 
 pub trait BinaryConverter {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()>;
-    fn read_from<R: BufRead>(reader: &mut R, dependencies: &mut Vec<u8>) -> AnyResult<Self>
-        where Self: Sized;
-
-    // fn read_from_with_logging<R: BufRead>(reader: &mut R, dependencies: &mut Vec<u8>) -> AnyResult<Self>
-    // where Self: Sized + std::fmt::Debug
-    // {
-    //     println!("Calling read_from for type: {}", std::any::type_name::<Self>());
-    //     let result = Self::read_from(reader, dependencies);
-    //
-    //     match &result {
-    //         Ok(value) => println!("Successfully read value: {:?}", value),
-    //         Err(e) => println!("Failed to read value: {:?}", e),
-    //     }
-    //
-    //     result
-    // }
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()>;
+    fn read_from<R: BufRead>(reader: &mut R, dependencies: &mut Vec<u8>) -> anyhow::Result<Self>
+    where
+        Self: Sized;
 }
 
 impl BinaryConverter for bool {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()> {
-        let flag = if *self { 1 } else { 0 };
-        buffer.write_u8(flag)?;
-
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
+        buffer.write_u8(*self as u8)?;
         Ok(())
     }
 
-    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> AnyResult<Self> {
-        let value = reader.read_u8()?;
-        Ok(if value == 1 { true } else { false })
+    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> anyhow::Result<Self> {
+        Ok(reader.read_u8()? == 1)
     }
 }
 
 impl BinaryConverter for u8 {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()> {
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
         buffer.write_u8(*self)?;
         Ok(())
     }
 
-    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> AnyResult<Self> {
+    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> anyhow::Result<Self> {
         Ok(reader.read_u8()?)
     }
 }
 
 impl BinaryConverter for u16 {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()> {
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
         buffer.write_u16::<LittleEndian>(*self)?;
         Ok(())
     }
 
-    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> AnyResult<Self> {
+    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> anyhow::Result<Self> {
         Ok(reader.read_u16::<LittleEndian>()?)
     }
 }
 
 impl BinaryConverter for u32 {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()> {
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
         buffer.write_u32::<LittleEndian>(*self)?;
         Ok(())
     }
 
-    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> AnyResult<Self> {
+    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> anyhow::Result<Self> {
         Ok(reader.read_u32::<LittleEndian>()?)
     }
 }
 
 impl BinaryConverter for u64 {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()> {
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
         buffer.write_u64::<LittleEndian>(*self)?;
         Ok(())
     }
 
-    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> AnyResult<Self> {
+    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> anyhow::Result<Self> {
         Ok(reader.read_u64::<LittleEndian>()?)
     }
 }
 
 impl BinaryConverter for i8 {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()> {
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
         buffer.write_i8(*self)?;
         Ok(())
     }
 
-    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> AnyResult<Self> {
+    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> anyhow::Result<Self> {
         Ok(reader.read_i8()?)
     }
 }
 
 impl BinaryConverter for i16 {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()> {
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
         buffer.write_i16::<LittleEndian>(*self)?;
         Ok(())
     }
 
-    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> AnyResult<Self> {
+    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> anyhow::Result<Self> {
         Ok(reader.read_i16::<LittleEndian>()?)
     }
 }
 
 impl BinaryConverter for i32 {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()> {
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
         buffer.write_i32::<LittleEndian>(*self)?;
         Ok(())
     }
 
-    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> AnyResult<Self> {
+    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> anyhow::Result<Self> {
         Ok(reader.read_i32::<LittleEndian>()?)
     }
 }
 
 impl BinaryConverter for i64 {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()> {
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
         buffer.write_i64::<LittleEndian>(*self)?;
         Ok(())
     }
 
-    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> AnyResult<Self> {
+    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> anyhow::Result<Self> {
         Ok(reader.read_i64::<LittleEndian>()?)
     }
 }
 
 impl BinaryConverter for f32 {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()> {
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
         buffer.write_f32::<LittleEndian>(*self)?;
         Ok(())
     }
 
-    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> AnyResult<Self> {
+    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> anyhow::Result<Self> {
         Ok(reader.read_f32::<LittleEndian>()?)
     }
 }
 
 impl BinaryConverter for f64 {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()> {
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
         buffer.write_f64::<LittleEndian>(*self)?;
         Ok(())
     }
 
-    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> AnyResult<Self> {
+    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> anyhow::Result<Self> {
         Ok(reader.read_f64::<LittleEndian>()?)
     }
 }
 
 impl BinaryConverter for String {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()> {
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
         buffer.write_all(self.as_bytes())?;
 
         Ok(())
@@ -160,8 +141,8 @@ impl BinaryConverter for String {
 
     fn read_from<R: BufRead>(
         reader: &mut R,
-        dependencies: &mut Vec<u8>
-    ) -> AnyResult<Self> {
+        dependencies: &mut Vec<u8>,
+    ) -> anyhow::Result<Self> {
         let mut cursor = Cursor::new(dependencies.to_vec());
 
         let size = match dependencies.len() {
@@ -191,27 +172,39 @@ impl BinaryConverter for String {
     }
 }
 
-impl<const N: usize> BinaryConverter for [u8; N] {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()> {
-        buffer.write_all(self)?;
+impl<const N: usize, T> BinaryConverter for [T; N]
+where
+    T: Sized + BinaryConverter + Clone + core::fmt::Debug,
+{
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
+        for i in 0..self.len() {
+            self[i].write_into(buffer)?;
+        }
+        
         Ok(())
     }
 
-    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> AnyResult<Self> {
-        let mut internal_buf = [0; N];
-        reader.read_exact(&mut internal_buf)?;
-        Ok(internal_buf)
+    fn read_from<R: BufRead>(reader: &mut R, _: &mut Vec<u8>) -> anyhow::Result<Self> {
+        let mut buffer = Vec::with_capacity(N);
+        for _ in 0..N {
+            buffer.push(T::read_from(reader, &mut vec![])?);
+        }
+
+        Ok(buffer.try_into().unwrap())
     }
 }
 
-impl<T: BinaryConverter + Clone> BinaryConverter for Vec<T> where T: Sized {
-    fn write_into(&mut self, buffer: &mut Vec<u8>) -> AnyResult<()> {
+impl<T: BinaryConverter + Clone> BinaryConverter for Vec<T>
+where
+    T: Sized,
+{
+    fn write_into(&mut self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
         self.iter_mut().for_each(|item| item.write_into(buffer).unwrap());
 
         Ok(())
     }
 
-    fn read_from<R: BufRead>(reader: &mut R, dependencies: &mut Vec<u8>) -> AnyResult<Self> {
+    fn read_from<R: BufRead>(reader: &mut R, dependencies: &mut Vec<u8>) -> anyhow::Result<Self> {
         let mut cursor = Cursor::new(dependencies.to_vec());
         let size = match dependencies.len() {
             1 => ReadBytesExt::read_u8(&mut cursor)? as usize,

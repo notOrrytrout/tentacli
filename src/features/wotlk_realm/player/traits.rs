@@ -1,12 +1,12 @@
-use rand::distributions::Alphanumeric;
-use rand::prelude::SliceRandom;
-use rand::{thread_rng, Rng};
+use rand::distr::Alphanumeric;
+use rand::Rng;
+use rand::seq::IndexedRandom;
 use tentacli_traits::types::player::{Class, Gender, Race};
 
 pub trait CharacterCreateToolkit {
-    fn generate_random_string(capitalize: bool) -> String {
-        let mut rng = thread_rng();
-        let random_length = rng.gen_range(9..=11);
+    fn generate_random_name() -> String {
+        let mut rng = rand::rng();
+        let random_length = rng.random_range(9..=11);
 
         let string: String = rng
             .sample_iter(&Alphanumeric)
@@ -15,13 +15,9 @@ pub trait CharacterCreateToolkit {
             .map(|c| c as char)
             .collect();
 
-        if capitalize {
-            let first_letter = string.chars().next().unwrap();
+        let first_letter = string.chars().next().unwrap();
 
-            format!("{}{}", first_letter.to_uppercase(), string.to_lowercase())
-        } else {
-            string.to_lowercase()
-        }
+        format!("{}{}", first_letter.to_uppercase(), string.to_lowercase())
     }
 
     fn get_random_race() -> u8 {
@@ -34,21 +30,27 @@ pub trait CharacterCreateToolkit {
             Race::TROLL,
         ];
 
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
         *races.choose(&mut rng).unwrap()
     }
 
     fn get_random_class() -> u8 {
-        let races = &[Class::WARRIOR, Class::ROGUE];
+        let races = &[
+            Class::WARRIOR,
+            Class::ROGUE,
+        ];
 
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
         *races.choose(&mut rng).unwrap()
     }
 
     fn get_random_gender() -> u8 {
-        let races = &[Gender::GENDER_MALE, Gender::GENDER_FEMALE];
+        let races = &[
+            Gender::GENDER_MALE,
+            Gender::GENDER_FEMALE,
+        ];
 
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
         *races.choose(&mut rng).unwrap()
     }
 }
