@@ -1,3 +1,6 @@
+use serde::Serialize;
+use tentacli_packet::{LoginPacket, WorldPacket, Segment};
+use crate::{depends_on, conditional};
 use anyhow::{Context, Result as AnyResult};
 use std::collections::{BTreeMap};
 use std::io::{BufRead};

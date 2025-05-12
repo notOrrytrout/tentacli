@@ -1,3 +1,6 @@
+use serde::Serialize;
+use tentacli_packet::{LoginPacket, WorldPacket, Segment};
+use crate::{depends_on, conditional};
 mod rc4;
 mod srp;
 mod warden_crypt;

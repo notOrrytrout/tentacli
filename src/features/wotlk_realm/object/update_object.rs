@@ -1,11 +1,13 @@
+use serde::Serialize;
+use tentacli_packet::{WorldPacket, Segment};
 use async_trait::async_trait;
-use tentacli_traits::{PacketHandler};
+use tentacli_traits::PacketHandler;
 use tentacli_traits::types::{HandlerInput, HandlerOutput, HandlerResult};
 use tentacli_traits::types::custom_fields::PackedGuid;
 use tentacli_traits::types::movement::Movement;
 use tentacli_traits::types::object::{Container, Corpse, DynamicObject, GameObject, Item, Unit};
 use tentacli_traits::types::opcodes::Opcode;
-use tentacli_traits::types::player::{Player};
+use tentacli_traits::types::player::Player;
 use tentacli_traits::types::update_data::{BlockType, ObjectTypeID, ObjectTypeMask, UpdateData};
 use tentacli_traits::types::update_fields::{FieldValue, ItemField, ObjectField};
 
@@ -350,14 +352,14 @@ impl PacketHandler for Handler {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::{Result as AnyResult};
-    use std::collections::BTreeMap;
+    use anyhow::Result as AnyResult;
     use tentacli_traits::types::custom_fields::PackedGuid;
+    use tentacli_traits::types::opcodes::Opcode;
+    use tentacli_traits::types::update_data::{BlockType, ObjectTypeID, ObjectTypeMask, UpdateData};
+    use std::collections::BTreeMap;
     use tentacli_traits::types::movement::{
         Movement, MovementExtraFlags, MovementFlags, MovementInfo, ObjectUpdateFlags, UnitMoveType
     };
-    use tentacli_traits::types::opcodes::Opcode;
-    use tentacli_traits::types::update_data::{BlockType, ObjectTypeID, ObjectTypeMask, UpdateData};
     use tentacli_traits::types::update_fields::{FieldValue, ObjectField, PlayerField, UnitField};
     use crate::features::wotlk_realm::object::update_object::{Block, Incoming};
 

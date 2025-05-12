@@ -1,3 +1,6 @@
+use serde::Serialize;
+use tentacli_packet::{LoginPacket, WorldPacket, Segment};
+use crate::{depends_on, conditional};
 use std::collections::BTreeMap;
 use anyhow::{Result as AnyResult};
 use tokio::task::JoinHandle;
@@ -12,7 +15,7 @@ pub trait Feature: Send {
         _receiver: BroadcastReceiver<HandlerOutput>,
     ) {}
 
-    fn get_tasks(&mut self) -> AnyResult<Vec<JoinHandle<()>>> {
+    fn get_tasks(&mut self) -> AnyResult<Vec<JoinHandle<AnyResult<()>>>>;
         Ok(vec![])
     }
 

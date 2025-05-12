@@ -1,22 +1,10 @@
-use anyhow::{Result as AnyResult};
-use std::process::exit;
-use std::sync::{Arc, Mutex as SyncMutex};
+use std::sync::{Arc, Mutex as SyncMutex, atomic::{AtomicBool, Ordering}};
 use std::time::Duration;
+use anyhow::Result;
 use crossterm::{
-    event::{
-        DisableMouseCapture,
-        EnableMouseCapture,
-        Event,
-        KeyCode,
-        KeyModifiers,
-    },
+    event::{DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
     execute,
-    terminal::{
-        disable_raw_mode,
-        enable_raw_mode,
-        EnterAlternateScreen,
-        LeaveAlternateScreen
-    }
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}
 };
 use futures::{FutureExt, StreamExt};
 use crossterm::event::EventStream;
@@ -53,14 +41,6 @@ pub struct UI {
     _sender: Option<BroadcastSender<HandlerOutput>>,
 }
 
-impl UI {
-    fn handle_exit() {
-        disable_raw_mode().unwrap();
-        execute!(std::io::stdout(), LeaveAlternateScreen, DisableMouseCapture).unwrap();
-        exit(0);
-    }
-}
-
 impl Feature for UI {
     fn set_broadcast_channel(
         &mut self,
@@ -71,38 +51,34 @@ impl Feature for UI {
         self._receiver = Some(receiver);
     }
 
-    fn get_tasks(&mut self) -> AnyResult<Vec<JoinHandle<()>>> {
+    fn get_tasks(&mut self) -> Result<Vec<JoinHandle<Result<(), anyhow::Error>>>> {
         let sender = self._sender.as_ref().ok_or(FeatureError::SenderNotFound)?.clone();
         let mut receiver = self._receiver.as_mut().ok_or(FeatureError::ReceiverNotFound)?.clone();
 
-        enable_raw_mode().unwrap();
-        execute!(std::io::stdout(), EnterAlternateScreen, EnableMouseCapture).unwrap();
+        enable_raw_mode()?;
+        execute!(std::io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
 
-        let terminal = Arc::new(
-            SyncMutex::new(
-                Terminal::new(
-                    CrosstermBackend::new(std::io::stdout())
-                )?
-            )
-        );
+        let terminal = Arc::new(SyncMutex::new(Terminal::new(CrosstermBackend::new(std::io::stdout()))?));
 
+        let shutdown = Arc::new(AtomicBool::new(false));
         let event_flags = Arc::new(SyncMutex::new(UIEventFlags::NONE));
         let characters_modal = Arc::new(SyncMutex::new(CharactersModal::new()));
         let debug_panel = Arc::new(SyncMutex::new(DebugPanel::new()));
         let realm_modal = Arc::new(SyncMutex::new(RealmModal::new()));
         let title = Arc::new(SyncMutex::new(Title::new()));
 
-        let handle_events = || {
-            let terminal =  Arc::clone(&terminal);
+        let handle_events = {
+            let shutdown = Arc::clone(&shutdown);
+            let terminal = Arc::clone(&terminal);
             let event_flags = Arc::clone(&event_flags);
             let characters_modal = Arc::clone(&characters_modal);
             let debug_panel = Arc::clone(&debug_panel);
             let realm_modal = Arc::clone(&realm_modal);
+            let sender = sender.clone();
 
             tokio::spawn(async move {
                 let mut reader = EventStream::new();
-
-                loop {
+                while !shutdown.load(Ordering::Relaxed) {
                     let delay = sleep(Duration::from_millis(100)).fuse();
                     let next_event = reader.next().fuse();
 
@@ -113,123 +89,90 @@ impl Feature for UI {
                                 if let Event::Key(key) = event {
                                     let crossterm::event::KeyEvent { modifiers, code, .. } = key;
 
-                                    event_flags.lock().unwrap().set(
-                                        UIEventFlags::IS_EVENT_HANDLED, false
-                                    );
+                                    event_flags.lock().unwrap().set(UIEventFlags::IS_EVENT_HANDLED, false);
 
                                     let outputs: Vec<HandlerOutput> = vec![
-                                        characters_modal.lock().unwrap().handle_key_event(
-                                            modifiers, code, Arc::clone(&event_flags)
-                                        ),
-                                        realm_modal.lock().unwrap().handle_key_event(
-                                            modifiers, code, Arc::clone(&event_flags)
-                                        ),
-                                        debug_panel.lock().unwrap().handle_key_event(
-                                            modifiers, code, Arc::clone(&event_flags)
-                                        )
-                                    ].into_iter()
-                                        .filter(|item| item.is_some())
-                                        .flatten()
-                                        .collect();
+                                        characters_modal.lock().unwrap().handle_key_event(modifiers, code, Arc::clone(&event_flags)),
+                                        realm_modal.lock().unwrap().handle_key_event(modifiers, code, Arc::clone(&event_flags)),
+                                        debug_panel.lock().unwrap().handle_key_event(modifiers, code, Arc::clone(&event_flags)),
+                                    ]
+                                    .into_iter()
+                                    .filter_map(|x| x)
+                                    .collect();
 
                                     for output in outputs {
-                                        sender.broadcast(output).await.unwrap();
+                                        let _ = sender.broadcast(output).await;
                                     }
 
-                                    if code == KeyCode::Char('c') &&
-                                    modifiers.contains(KeyModifiers::CONTROL) {
-                                        let is_exit_requested = {
-                                            event_flags.lock().unwrap()
-                                            .contains(UIEventFlags::IS_EXIT_REQUESTED)
-                                        };
+                                    if code == KeyCode::Char('c') && modifiers.contains(KeyModifiers::CONTROL) {
+                                        let is_exit_requested = event_flags.lock().unwrap()
+                                            .contains(UIEventFlags::IS_EXIT_REQUESTED);
 
                                         if is_exit_requested {
-                                            // force exit by double ctrl+c
-                                            Self::handle_exit();
+                                            shutdown.store(true, Ordering::Relaxed);
                                         } else {
-                                            event_flags.lock().unwrap().set(
-                                                UIEventFlags::IS_EXIT_REQUESTED, true
-                                            );
-                                            sender.broadcast(
-                                                HandlerOutput::DebugMessage(
-                                                    "Starting logout, please wait \
-                                                    OR press Ctrl+C again for quick quit"
-                                                    .to_string(),
-                                                    None
-                                                )
-                                            ).await.unwrap();
-
-                                            sender.broadcast(
-                                                HandlerOutput::ExitRequest
-                                            ).await.unwrap();
+                                            event_flags.lock().unwrap().set(UIEventFlags::IS_EXIT_REQUESTED, true);
+                                            let _ = sender.broadcast(HandlerOutput::DebugMessage(
+                                                "Starting logout, please wait OR press Ctrl+C again for quick quit".to_string(),
+                                                None
+                                            )).await;
+                                            let _ = sender.broadcast(HandlerOutput::ExitRequest).await;
                                         }
                                     }
                                 } else if let Event::Resize(_, _) = event {
-                                    terminal.lock().unwrap().autoresize().unwrap();
+                                    let _ = terminal.lock().unwrap().autoresize();
                                 }
                             }
                         }
                     }
                 }
+
+                Ok(())
             })
         };
 
-        let handle_input = || {
-            let event_flags = Arc::clone(&event_flags);
-            let characters_modal = Arc::clone(&characters_modal);
+        let handle_input = {
             let debug_panel = Arc::clone(&debug_panel);
+            let characters_modal = Arc::clone(&characters_modal);
             let realm_modal = Arc::clone(&realm_modal);
+            let event_flags = Arc::clone(&event_flags);
 
             tokio::spawn(async move {
-                loop {
-                    if let Ok(output) = receiver.recv().await {
-                        match output {
-                            HandlerOutput::SuccessMessage(message, details) => {
-                                debug_panel.lock().unwrap().add_item(
-                                    LoggerOutput::Success(message, details)
-                                );
-                            },
-                            HandlerOutput::ErrorMessage(message, details) => {
-                                debug_panel.lock().unwrap().add_item(
-                                    LoggerOutput::Error(message, details)
-                                );
-                            },
-                            HandlerOutput::DebugMessage(message, details) => {
-                                debug_panel.lock().unwrap().add_item(
-                                    LoggerOutput::Debug(message, details)
-                                );
-                            },
-                            HandlerOutput::ResponseMessage(message, details) => {
-                                debug_panel.lock().unwrap().add_item(
-                                    LoggerOutput::Response(message, details)
-                                );
-                            },
-                            HandlerOutput::RequestMessage(message, details) => {
-                                debug_panel.lock().unwrap().add_item(
-                                    LoggerOutput::Request(message, details)
-                                );
-                            },
-                            HandlerOutput::TransferCharactersList(characters) => {
-                                event_flags.lock().unwrap().set(
-                                    UIEventFlags::IS_CHARACTERS_MODAL_OPENED, true
-                                );
-                                characters_modal.lock().unwrap().set_items(characters);
-                            },
-                            HandlerOutput::TransferRealmsList(realms) => {
-                                event_flags.lock().unwrap().set(
-                                    UIEventFlags::IS_REALM_MODAL_OPENED, true
-                                );
-                                realm_modal.lock().unwrap().set_items(realms);
-                            },
-                            _ => {},
+                while let Ok(output) = receiver.recv().await {
+                    match output {
+                        HandlerOutput::SuccessMessage(message, details) => {
+                            debug_panel.lock().unwrap().add_item(LoggerOutput::Success(message, details));
                         }
+                        HandlerOutput::ErrorMessage(message, details) => {
+                            debug_panel.lock().unwrap().add_item(LoggerOutput::Error(message, details));
+                        }
+                        HandlerOutput::DebugMessage(message, details) => {
+                            debug_panel.lock().unwrap().add_item(LoggerOutput::Debug(message, details));
+                        }
+                        HandlerOutput::ResponseMessage(message, details) => {
+                            debug_panel.lock().unwrap().add_item(LoggerOutput::Response(message, details));
+                        }
+                        HandlerOutput::RequestMessage(message, details) => {
+                            debug_panel.lock().unwrap().add_item(LoggerOutput::Request(message, details));
+                        }
+                        HandlerOutput::TransferCharactersList(characters) => {
+                            event_flags.lock().unwrap().set(UIEventFlags::IS_CHARACTERS_MODAL_OPENED, true);
+                            characters_modal.lock().unwrap().set_items(characters);
+                        }
+                        HandlerOutput::TransferRealmsList(realms) => {
+                            event_flags.lock().unwrap().set(UIEventFlags::IS_REALM_MODAL_OPENED, true);
+                            realm_modal.lock().unwrap().set_items(realms);
+                        }
+                        _ => {}
                     }
                 }
+                Ok(())
             })
         };
 
-        let handle_render = || {
-            let terminal =  Arc::clone(&terminal);
+        let handle_render = {
+            let shutdown = Arc::clone(&shutdown);
+            let terminal = Arc::clone(&terminal);
             let event_flags = Arc::clone(&event_flags);
             let characters_modal = Arc::clone(&characters_modal);
             let debug_panel = Arc::clone(&debug_panel);
@@ -238,11 +181,12 @@ impl Feature for UI {
 
             tokio::spawn(async move {
                 {
-                    terminal.lock().unwrap().clear().unwrap();
-                    terminal.lock().unwrap().hide_cursor().unwrap();
+                    let mut term = terminal.lock().unwrap();
+                    term.clear()?;
+                    term.hide_cursor()?;
                 }
 
-                loop {
+                while !shutdown.load(Ordering::Relaxed) {
                     terminal.lock().unwrap().draw(|frame| {
                         let chunks = Layout::default()
                             .direction(Direction::Vertical)
@@ -263,18 +207,21 @@ impl Feature for UI {
                         if event_flags.lock().unwrap().contains(UIEventFlags::IS_REALM_MODAL_OPENED) {
                             realm_modal.lock().unwrap().render(frame, chunks[1]);
                         }
-
-                    }).unwrap();
+                    })?;
 
                     sleep(Duration::from_millis(30)).await;
                 }
+
+                let _ = disable_raw_mode();
+                let _ = execute!(std::io::stdout(), LeaveAlternateScreen, DisableMouseCapture);
+                Ok(())
             })
         };
 
         Ok(vec![
-            handle_events(),
-            handle_input(),
-            handle_render(),
+            handle_events,
+            handle_input,
+            handle_render,
         ])
     }
 }

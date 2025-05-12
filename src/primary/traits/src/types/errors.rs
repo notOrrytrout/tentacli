@@ -1,3 +1,6 @@
+use serde::Serialize;
+use tentacli_packet::{LoginPacket, WorldPacket, Segment};
+use crate::{depends_on, conditional};
 #[derive(Error, Debug)]
 pub enum CharacterListError {
     #[error("Characters list is empty. Cannot select any character here.")]

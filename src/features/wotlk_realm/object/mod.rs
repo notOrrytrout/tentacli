@@ -1,5 +1,5 @@
 use tentacli_traits::Processor;
-use tentacli_traits::types::{ProcessorResult};
+use tentacli_traits::types::ProcessorResult;
 use tentacli_traits::types::opcodes::Opcode;
 
 mod update_object;

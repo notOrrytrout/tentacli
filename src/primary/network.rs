@@ -1,20 +1,24 @@
-use anyhow::{Result as AnyResult};
-use std::io::{Cursor, Error};
+use cfg_if::cfg_if;
+
+#[cfg(feature = "wotlk_login")]
+use anyhow::Result as AnyResult;
+
+use std::io::Cursor;
 use std::sync::{Arc, Mutex as SyncMutex};
-use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
+
+use byteorder::{BigEndian, LittleEndian};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
+
 use tentacli_crypto::{Decryptor, Encryptor, WardenCrypt};
 use tentacli_traits::types::{IncomingPacket, OutgoingPacket};
 use tentacli_traits::types::opcodes::Opcode;
 
 cfg_if! {
     if #[cfg(feature = "wotlk_login")] {
-        use crate::features::wotlk_login::{
-            LoginChallengeResponse, LoginProofResponse, RealmlistResponse
-        };
+        // Proceed
     } else {
-        panic!("Login feature must be enabled !");
+        compile_error!("Login feature must be enabled!");
     }
 }
 
@@ -33,12 +37,10 @@ impl Reader {
         reader: OwnedReadHalf,
         warden_crypt: Arc<SyncMutex<Option<WardenCrypt>>>,
         need_sync: bool,
-        decryptor: Option<Decryptor>
+        decryptor: Option<Decryptor>,
     ) -> Self {
-        let buf_reader = BufReader::new(reader);
-
         Self {
-            _stream: buf_reader,
+            _stream: BufReader::new(reader),
             _decryptor: decryptor,
             _warden_crypt: warden_crypt,
             _need_sync: need_sync,
@@ -48,16 +50,15 @@ impl Reader {
     pub async fn read(&mut self) -> AnyResult<IncomingPacket> {
         let (opcode, body) = if let Some(decryptor) = self._decryptor.as_mut() {
             let mut header = vec![0u8; 4];
-            self._stream.read_exact(&mut header[..]).await?;
+            self._stream.read_exact(&mut header).await?;
 
             if !self._need_sync {
-                header = decryptor.decrypt(&header);
+                decryptor.decrypt(&mut header);
             } else {
                 self._need_sync = false;
             }
 
-            let first_byte = header[0];
-            let is_long_packet = first_byte >= 0x80;
+            let is_long_packet = header[0] >= 0x80;
 
             if is_long_packet {
                 let extra_byte = self._stream.read_u8().await?;
@@ -66,18 +67,20 @@ impl Reader {
 
             let mut header_reader = Cursor::new(&header);
             let size = if is_long_packet {
-                ReadBytesExt::read_u24::<BigEndian>(&mut header_reader)? as usize
+                byteorder::ReadBytesExt::read_u24::<BigEndian>(&mut header_reader)? as usize
             } else {
-                ReadBytesExt::read_u16::<BigEndian>(&mut header_reader)? as usize
+                byteorder::ReadBytesExt::read_u16::<BigEndian>(&mut header_reader)? as usize
             };
 
-            let opcode = ReadBytesExt::read_u16::<LittleEndian>(&mut header_reader).unwrap();
+            let opcode = byteorder::ReadBytesExt::read_u16::<LittleEndian>(&mut header_reader)?;
 
             let mut body = vec![0u8; size - INCOME_WORLD_OPCODE_LENGTH];
             self._stream.read_exact(&mut body).await?;
 
             if opcode == Opcode::SMSG_WARDEN_DATA {
-                body = self._warden_crypt.lock().unwrap().as_mut().unwrap().decrypt(&body);
+                if let Some(ref mut crypt) = *self._warden_crypt.lock().unwrap() {
+                    crypt.decrypt(&mut body);
+                }
             }
 
             (opcode, body)
@@ -85,27 +88,31 @@ impl Reader {
             let opcode = self._stream.read_u8().await?;
             let body = match opcode {
                 Opcode::LOGIN_CHALLENGE => {
-                    LoginChallengeResponse::from_stream(&mut self._stream)
-                        .await
-                        .map_err(|e| Error::new(std::io::ErrorKind::Other, e))?
-                },
+                    let mut buf = vec![0u8; 32];
+                    self._stream.read_exact(&mut buf).await?;
+                    buf
+                }
                 Opcode::LOGIN_PROOF => {
-                    LoginProofResponse::from_stream(&mut self._stream)
-                        .await
-                        .map_err(|e| Error::new(std::io::ErrorKind::Other, e))?
-                },
+                    let mut buf = vec![0u8; 32];
+                    self._stream.read_exact(&mut buf).await?;
+                    buf
+                }
                 Opcode::REALM_LIST => {
-                    RealmlistResponse::from_stream(&mut self._stream)
-                        .await
-                        .map_err(|e| Error::new(std::io::ErrorKind::Other, e))?
-                },
+                    let mut buf = vec![0u8; 128];
+                    self._stream.read_exact(&mut buf).await?;
+                    buf
+                }
                 _ => vec![],
             };
 
             (opcode as u16, body)
         };
 
-        Ok(IncomingPacket { opcode, body })
+        Ok(IncomingPacket {
+            opcode,
+            body,
+            header: vec![],
+        })
     }
 }
 
@@ -121,7 +128,7 @@ impl Writer {
         writer: OwnedWriteHalf,
         warden_crypt: Arc<SyncMutex<Option<WardenCrypt>>>,
         need_sync: bool,
-        encryptor: Option<Encryptor>
+        encryptor: Option<Encryptor>,
     ) -> Self {
         Self {
             _stream: writer,
@@ -138,29 +145,27 @@ impl Writer {
                     self._need_sync = false;
                     packet.data.to_vec()
                 } else {
-                    let header = encryptor.encrypt(
-                        &packet.data[..OUTCOME_WORLD_PACKET_HEADER_LENGTH]
-                    );
+                    let mut header = packet.data[..OUTCOME_WORLD_PACKET_HEADER_LENGTH].to_vec();
+                    encryptor.encrypt(&mut header);
 
                     let body = if packet.opcode == Opcode::CMSG_WARDEN_DATA {
-                        self._warden_crypt.lock().unwrap().as_mut().unwrap()
-                            .encrypt(&packet.data[OUTCOME_WORLD_PACKET_HEADER_LENGTH..])
+                        let mut body = packet.data[OUTCOME_WORLD_PACKET_HEADER_LENGTH..].to_vec();
+                        if let Some(ref mut crypt) = *self._warden_crypt.lock().unwrap() {
+                            crypt.encrypt(&mut body);
+                        }
+                        body
                     } else {
                         packet.data[OUTCOME_WORLD_PACKET_HEADER_LENGTH..].to_vec()
                     };
 
-                    [header.to_vec(), body.to_vec()].concat()
+                    [header, body].concat()
                 }
-            },
-            _ => packet.data.to_vec(),
+            }
+            None => packet.data.to_vec(),
         };
 
-        match self._stream.write(&packet_bytes).await {
-            Ok(bytes_amount) => {
-                let _ = &self._stream.flush().await.unwrap();
-                Ok(bytes_amount)
-            },
-            Err(err) => Err(err.into()),
-        }
+        let written = self._stream.write(&packet_bytes).await?;
+        self._stream.flush().await?;
+        Ok(written)
     }
 }

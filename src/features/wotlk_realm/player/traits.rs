@@ -1,6 +1,6 @@
 use rand::distributions::Alphanumeric;
 use rand::prelude::SliceRandom;
-use rand::{Rng, thread_rng};
+use rand::{thread_rng, Rng};
 use tentacli_traits::types::player::{Class, Gender, Race};
 
 pub trait CharacterCreateToolkit {
@@ -39,20 +39,14 @@ pub trait CharacterCreateToolkit {
     }
 
     fn get_random_class() -> u8 {
-        let races = &[
-            Class::WARRIOR,
-            Class::ROGUE,
-        ];
+        let races = &[Class::WARRIOR, Class::ROGUE];
 
         let mut rng = thread_rng();
         *races.choose(&mut rng).unwrap()
     }
 
     fn get_random_gender() -> u8 {
-        let races = &[
-            Gender::GENDER_MALE,
-            Gender::GENDER_FEMALE,
-        ];
+        let races = &[Gender::GENDER_MALE, Gender::GENDER_FEMALE];
 
         let mut rng = thread_rng();
         *races.choose(&mut rng).unwrap()

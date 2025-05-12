@@ -1,3 +1,4 @@
+
 use std::sync::{Arc, Mutex as SyncMutex};
 use crossterm::event::{KeyCode, KeyModifiers};
 use tui::style::{Color, Modifier, Style};
@@ -6,8 +7,8 @@ use tui::widgets::{ListItem, ListState};
 use tentacli_traits::types::HandlerOutput;
 use tentacli_traits::types::player::Player;
 
-use crate::features::ui::traits::{UIModalComponent};
-use crate::features::ui::types::{UIEventFlags};
+use super::traits::UIModalComponent;
+use super::types::UIEventFlags;
 
 pub struct CharactersModal {
     state: ListState,

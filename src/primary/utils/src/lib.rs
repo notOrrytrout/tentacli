@@ -1,3 +1,6 @@
+use serde::Serialize;
+use tentacli_packet::{LoginPacket, WorldPacket, Segment};
+use crate::{depends_on, conditional};
 use std::{num::ParseIntError};
 use std::io::{Read, Write};
 use anyhow::{anyhow, Result as AnyResult};

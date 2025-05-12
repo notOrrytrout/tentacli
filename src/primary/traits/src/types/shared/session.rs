@@ -1,3 +1,6 @@
+use serde::Serialize;
+use tentacli_packet::{LoginPacket, WorldPacket, Segment};
+use crate::{depends_on, conditional};
 use std::collections::HashSet;
 use std::fmt::{Debug};
 use bitflags::bitflags;

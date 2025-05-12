@@ -94,18 +94,14 @@
 //!     // Client::new(CreateOptions::default()).run(options).await.unwrap();
 //! }
 //! ```
-
 #[cfg(feature = "ui")]
 extern crate chrono;
-#[macro_use]
 extern crate tentacli_packet;
-#[macro_use]
 extern crate serde;
-#[macro_use]
 extern crate cfg_if;
 
 mod features;
-mod primary;
+pub mod primary;
 
 pub use primary::client::{Client, CreateOptions, RunOptions};
 
@@ -114,5 +110,7 @@ pub mod async_broadcast {
 }
 
 pub mod serializers {
-    pub use crate::primary::serializers::{serialize_array};
+    pub use crate::primary::serializers::serialize_array;
 }
+// Re-export helpers from internal features module
+pub use features::{depends_on, conditional};

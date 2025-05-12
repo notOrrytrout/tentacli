@@ -1,7 +1,6 @@
+
 use std::collections::BTreeMap;
-use tentacli_traits::{Processor};
-use tentacli_traits::types::{ProcessorResult};
-use tentacli_traits::types::opcodes::Opcode;
+use tentacli_traits::{types::{opcodes::Opcode, ProcessorResult}, Processor};
 
 mod join_channels;
 mod parse_motd;

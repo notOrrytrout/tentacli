@@ -1,3 +1,6 @@
+use serde::Serialize;
+use tentacli_packet::{LoginPacket, WorldPacket, Segment};
+use crate::{depends_on, conditional};
 #[non_exhaustive]
 pub struct AuthLogonResult;
 #[allow(dead_code)]

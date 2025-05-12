@@ -1,3 +1,6 @@
+use serde::Serialize;
+use tentacli_packet::{LoginPacket, WorldPacket, Segment};
+use crate::{depends_on, conditional};
 use anyhow::{Result as AnyResult};
 use std::collections::BTreeMap;
 use std::io::{BufRead, Cursor};
@@ -102,8 +105,6 @@ impl Movement {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-    use anyhow::{Result as AnyResult};
     use crate::BinaryConverter;
     use crate::types::movement::{Movement, MovementExtraFlags, MovementFlags, MovementInfo, ObjectUpdateFlags, UnitMoveType};
     use crate::types::position::Vector3D;

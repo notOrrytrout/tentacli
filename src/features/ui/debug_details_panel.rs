@@ -1,15 +1,18 @@
 use std::sync::{Arc, Mutex as SyncMutex};
 use crossterm::event::{KeyCode, KeyModifiers};
 use tui::backend::Backend;
+use tui::text::Text;
 use tui::Frame;
 use tui::layout::{Alignment, Rect};
 use tui::style::{Color, Style};
-use tui::text::{Text};
+
 use tui::widgets::{Block, Borders, BorderType, Paragraph, Wrap};
 
-use crate::features::ui::traits::{UIComponent};
+
 use crate::features::ui::MARGIN;
-use crate::features::ui::types::{UIEventFlags};
+
+use super::traits::UIComponent;
+use super::types::UIEventFlags;
 
 const PANEL_TITLE: &str = "DEBUG DETAILS";
 

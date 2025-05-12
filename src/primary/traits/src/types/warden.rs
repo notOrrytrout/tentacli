@@ -1,3 +1,6 @@
+use serde::Serialize;
+use tentacli_packet::{LoginPacket, WorldPacket, Segment};
+use crate::{depends_on, conditional};
 use std::io::{Cursor, Read};
 use byteorder::{LittleEndian, ReadBytesExt};
 use tentacli_crypto::RC4;

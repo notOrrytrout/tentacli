@@ -1,3 +1,5 @@
+use serde::Serialize;
+use tentacli_packet::LoginPacket;
 use anyhow::bail;
 use async_trait::async_trait;
 use regex::Regex;

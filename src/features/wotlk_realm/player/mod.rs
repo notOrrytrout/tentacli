@@ -1,5 +1,5 @@
 use tentacli_traits::Processor;
-use tentacli_traits::types::{ProcessorResult};
+use tentacli_traits::types::ProcessorResult;
 use tentacli_traits::types::opcodes::Opcode;
 
 mod handle_name_query_response;
@@ -60,6 +60,7 @@ impl Processor for PlayerProcessor {
 
 pub mod packet {
     use serde::Serialize;
+    use tentacli_packet::WorldPacket;
 
     // Opcode::CMSG_CHAR_CREATE
     #[derive(WorldPacket, Serialize, Debug)]
